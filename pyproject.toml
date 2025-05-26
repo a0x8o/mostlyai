@@ -47,9 +47,9 @@ dependencies = [
 
 [project.optional-dependencies]
 local = [
-    # "mostlyai-engine @ git+https://github.com/mostly-ai/mostlyai-engine.git@main",  # for development
+    "mostlyai-engine @ git+https://github.com/mostly-ai/mostlyai-engine.git@feat-increase-vllm-bsz",  # for development
     # "mostlyai-qa @ git+https://github.com/mostly-ai/mostlyai-qa.git@main",  # for development
-    "mostlyai-engine==1.4.2",  # for release
+    # "mostlyai-engine==1.4.2",  # for release
     "mostlyai-qa==1.9.6",  # for release
     "fastapi>=0.115.6,<0.116",
     "uvicorn>=0.34.0,<0.35",
