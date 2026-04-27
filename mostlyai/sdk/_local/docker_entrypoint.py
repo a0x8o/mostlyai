@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from argparse import ArgumentParser
+from time import sleep
 
-def main() -> None:
-    """
-    Entrypoint for the Synthetic Data SDK Docker image.
-    Can be called without any arguments which would start in a Local mode, running on port 8080.
-    Alternatively, any arguments can be passed as key-value pairs and they will be used when initiating the MostlyAI class.
-    """
-    from argparse import ArgumentParser
-    from time import sleep
+from mostlyai.sdk import MostlyAI
 
+
+def _parse_kwargs() -> dict:
     parser = ArgumentParser(description="Synthetic Data SDK Docker Entrypoint")
     _, args = parser.parse_known_args()
     kwargs = {}
@@ -29,13 +26,15 @@ def main() -> None:
         if arg.startswith("--"):
             key, value = arg.lstrip("--").split("=", 1)
             kwargs[key] = value
-    if len(kwargs) == 0:
+    return kwargs
+
+
+def main() -> None:
+    kwargs = _parse_kwargs()
+    if not kwargs:
         kwargs = {"local": True, "local_port": 8080}
 
     print("Startup may take a few seconds while libraries are being loaded...")
-
-    from mostlyai.sdk import MostlyAI
-
     MostlyAI(**kwargs)
 
     try:

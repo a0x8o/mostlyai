@@ -26,7 +26,7 @@ from mostlyai.sdk.client.exceptions import APIError, APIStatusError
 @pytest.fixture
 def mostly_base_client():
     """Fixture to provide a _MostlyBaseClient instance."""
-    return _MostlyBaseClient(api_key="test_api_key")
+    return _MostlyBaseClient()
 
 
 @pytest.fixture
@@ -34,26 +34,22 @@ def more_specific_client():
     class MoreSpecificClient(_MostlyBaseClient):
         SECTION = ["more", "specific"]
 
-    return MoreSpecificClient(api_key="test_api_key")
+    return MoreSpecificClient()
 
 
 class TestMostlyBaseClient:
     def test_initialization(self):
-        # Test with all parameters provided
-        client = _MostlyBaseClient(base_url="https://custom.url", api_key="12345")
+        # Test with custom base_url
+        client = _MostlyBaseClient(base_url="https://custom.url")
         assert client.base_url == "https://custom.url"
-        assert client.api_key == "12345"
 
-        # Test with all required parameters provided
-        client = _MostlyBaseClient(api_key="12345")
+        # Test with default parameters
+        client = _MostlyBaseClient()
         assert client.base_url == DEFAULT_BASE_URL
-        assert client.api_key == "12345"
 
     @respx.mock
     def test_request_success(self, mostly_base_client):
-        mock_url = respx.get("https://app.mostly.ai/api/v2/test").mock(
-            return_value=Response(200, json={"success": True})
-        )
+        mock_url = respx.get(f"{DEFAULT_BASE_URL}/api/v2/test").mock(return_value=Response(200, json={"success": True}))
         response = mostly_base_client.request(path="test", verb="GET")
 
         assert mock_url.called
@@ -61,7 +57,7 @@ class TestMostlyBaseClient:
 
     @respx.mock
     def test_request_http_error(self, mostly_base_client):
-        respx.get("https://app.mostly.ai/api/v2/test").mock(return_value=Response(404, json={"message": "Not found"}))
+        respx.get(f"{DEFAULT_BASE_URL}/api/v2/test").mock(return_value=Response(404, json={"message": "Not found"}))
 
         with pytest.raises(APIStatusError) as excinfo:
             mostly_base_client.request(path="test", verb="GET")
@@ -70,7 +66,7 @@ class TestMostlyBaseClient:
 
     @respx.mock
     def test_client_request_network_error(self, mostly_base_client):
-        respx.get("https://app.mostly.ai/api/v2/test").mock(side_effect=NetworkError("Network error"))
+        respx.get(f"{DEFAULT_BASE_URL}/api/v2/test").mock(side_effect=NetworkError("Network error"))
 
         with pytest.raises(APIError) as excinfo:
             mostly_base_client.request("test", "GET")
@@ -80,7 +76,7 @@ class TestMostlyBaseClient:
     @respx.mock
     def test_client_post_request(self, mostly_base_client):
         test_data = CustomBaseModel(name="Test")
-        respx.post("https://app.mostly.ai/api/v2/create").mock(return_value=Response(201, json={"success": True}))
+        respx.post(f"{DEFAULT_BASE_URL}/api/v2/create").mock(return_value=Response(201, json={"success": True}))
 
         response = mostly_base_client.request("create", "POST", json=test_data)
 
@@ -88,7 +84,7 @@ class TestMostlyBaseClient:
 
     @respx.mock
     def test_more_specific_client_request(self, more_specific_client):
-        mock_url = respx.get("https://app.mostly.ai/api/v2/more/specific/test").mock(
+        mock_url = respx.get(f"{DEFAULT_BASE_URL}/api/v2/more/specific/test").mock(
             return_value=Response(200, json={"success": True})
         )
         response = more_specific_client.request(path="test", verb="GET")
@@ -125,7 +121,7 @@ class TestPaginator:
 
     @respx.mock
     def test_paginator_no_results(self, mostly_base_client):
-        respx.get("https://app.mostly.ai/api/v2?offset=0&limit=50").mock(
+        respx.get(f"{DEFAULT_BASE_URL}/api/v2?offset=0&limit=50").mock(
             return_value=Response(200, json={"results": [], "totalCount": 0})
         )
 

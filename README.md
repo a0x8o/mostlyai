@@ -7,13 +7,12 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mostlyai)](https://pypi.org/project/mostlyai/)
 [![GitHub stars](https://img.shields.io/github/stars/mostly-ai/mostlyai?style=social)](https://github.com/mostly-ai/mostlyai/stargazers)
 
-[Documentation](https://mostly-ai.github.io/mostlyai/) | [Technical White Paper](https://arxiv.org/abs/2508.00718) | [Usage Examples](https://mostly-ai.github.io/mostlyai/usage/) | [Free Cloud Service](https://app.mostly.ai/)
+[Documentation](https://mostly-ai.github.io/mostlyai/) | [Technical White Paper](https://arxiv.org/abs/2508.00718) | [Usage Examples](https://mostly-ai.github.io/mostlyai/usage/)
 
 The **Synthetic Data SDK** is a Python toolkit for high-fidelity, privacy-safe **Synthetic Data**.
 
-- **LOCAL** mode trains and generates synthetic data locally on your own compute resources.
-- **CLIENT** mode connects to a remote MOSTLY AI platform for training & generating synthetic data there.
-- Generators, that were trained locally, can be easily imported to a platform for further sharing.
+- **LOCAL** mode trains and generates synthetic data locally on your own compute resources (default).
+- **CLIENT** mode connects to a remote SDK endpoint for training & generating synthetic data there.
 
 ## Overview
 
@@ -29,8 +28,6 @@ The SDK allows you to programmatically create, browse and manage 3 key resources
 | Generate any number of synthetic data records | `sd = mostly.generate(g, config)` | [mostly.generate](https://mostly-ai.github.io/mostlyai/api_client/#mostlyai.sdk.client.api.MostlyAI.generate) |
 | Live probe the generator on demand            | `df = mostly.probe(g, config)`    | [mostly.probe](https://mostly-ai.github.io/mostlyai/api_client/#mostlyai.sdk.client.api.MostlyAI.probe)       |
 | Connect to any data source within your org    | `c = mostly.connect(config)`      | [mostly.connect](https://mostly-ai.github.io/mostlyai/api_client/#mostlyai.sdk.client.api.MostlyAI.connect)   |
-
-https://github.com/user-attachments/assets/9e233213-a259-455c-b8ed-d1f1548b492f
 
 ## Key Features
 
@@ -62,10 +59,10 @@ https://github.com/user-attachments/assets/9e233213-a259-455c-b8ed-d1f1548b492f
 
 ## Quick Start <a href="https://colab.research.google.com/github/mostly-ai/mostlyai/blob/main/docs/tutorials/getting-started/getting-started.ipynb" target="_blank"><img src="https://img.shields.io/badge/Open%20in-Colab-blue?logo=google-colab" alt="Run on Colab"></a>
 
-Install the SDK via `pip` (see [Installation](#installation) for further details):
+Install the SDK for LOCAL mode (see [Installation](#installation) for further details):
 
 ```shell
-pip install -U mostlyai  # or 'mostlyai[local]' for LOCAL mode
+uv pip install -U 'mostlyai[local]'
 ```
 
 Generate synthetic samples using a pre-trained generator:
@@ -191,17 +188,9 @@ uv run --with jupyter jupyter lab
 
 </details>
 
-### CLIENT mode
+### LOCAL mode (default)
 
-This is a light-weight installation for using the SDK in CLIENT mode only. It communicates to a MOSTLY AI platform to perform requested tasks. See e.g. [app.mostly.ai](https://app.mostly.ai/) for a free-to-use hosted version.
-
-```shell
-uv pip install -U mostlyai
-```
-
-### CLIENT + LOCAL mode
-
-This is a full installation for using the SDK in both CLIENT and LOCAL mode. It includes all dependencies, incl. PyTorch, for training and generating synthetic data locally.
+This is the recommended installation for running the SDK in LOCAL mode (and optionally CLIENT mode as well). It includes all dependencies, incl. PyTorch, for training and generating synthetic data locally.
 
 ```shell
 uv pip install -U 'mostlyai[local]'
@@ -223,6 +212,14 @@ uv pip install --index-strategy unsafe-first-match -U torch==2.9.1+cpu torchvisi
 ```shell
 # standard pip install
 pip install -U torch==2.9.1+cpu torchvision==0.24.1+cpu 'mostlyai[local]' --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+### CLIENT mode
+
+This is a light-weight installation for explicit CLIENT-only usage against a remote SDK endpoint.
+
+```shell
+uv pip install -U mostlyai
 ```
 
 
@@ -276,7 +273,7 @@ As an alternative, you can also build a Docker image, which provides you with an
 
   <summary>Connect to the container</summary>
 
-  <p>You can now connect to the SDK running within the container by initializing the SDK in <code>CLIENT</code>> mode on the host machine.</p>
+  <p>You can now connect to the SDK running within the container from the host machine via an explicit <code>base_url</code>.</p>
 
   ```python
   from mostlyai.sdk import MostlyAI

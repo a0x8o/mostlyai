@@ -294,9 +294,6 @@ trn_df = pd.read_parquet(f'{repo_url}/raw/refs/heads/dev/headlines/headlines.par
 # instantiate SDK
 mostly = MostlyAI()
 
-# print out available LANGUAGE models
-print(mostly.models()["LANGUAGE"])
-
 # train a generator; increase max_training_time to improve quality
 g = mostly.train(config={
     'name': 'Headlines',                   # name of the generator
@@ -401,41 +398,4 @@ sd = mostly.generate(g, config={
         "overwrite_tables": True,                   # overwrite existing tables (default: False)
     }
 })
-```
-
-## Usage of datasets (CLIENT mode only)
-
-Create datasets to train [generators](#tabular-and-textual-data) or generate [artifacts](https://docs.mostly.ai/assistant/artifacts) via the MOSTLY AI Assistant.
-
-Example 1: Create a dataset with a connector
-
-```python
-from mostlyai.sdk import MostlyAI
-mostly = MostlyAI()
-ds = mostly.datasets.create(
-    config={
-        "name": "My Database",
-        "description": "Some instructions...",
-        "connectors": [
-            {
-                "id": "e43aa845-8d77-4cda-bc9e-10da9a4196a9"  # the UUID of the source connector
-            }
-        ]
-    }
-)
-```
-
-Example 2: Create a dataset with files
-
-```python
-from mostlyai.sdk import MostlyAI
-mostly = MostlyAI()
-ds = mostly.datasets.create(
-    config={
-        "name": "My Dataset",
-        "description": "Some instructions...",
-    }
-)
-ds.upload_file("path/to/file_1.csv.gz")
-ds.upload_file("path/to/file_2.txt")
 ```

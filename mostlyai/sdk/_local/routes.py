@@ -26,7 +26,6 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
-from mostlyai import sdk
 from mostlyai.sdk._data.conversions import create_container_from_connector
 from mostlyai.sdk._local import connectors, generators, synthetic_datasets
 from mostlyai.sdk._local.execution.jobs import execute_probing_job
@@ -36,18 +35,14 @@ from mostlyai.sdk._local.storage import (
     create_zip_in_memory,
     get_model_label,
     read_connector_from_json,
-    read_dataset_from_json,
     read_generator_from_json,
     read_job_progress_from_json,
     read_synthetic_dataset_from_json,
     write_connector_to_json,
-    write_dataset_to_json,
     write_generator_to_json,
     write_synthetic_dataset_to_json,
 )
 from mostlyai.sdk.domain import (
-    AboutService,
-    ComputeListItem,
     Connector,
     ConnectorConfig,
     ConnectorDeleteDataConfig,
@@ -56,11 +51,6 @@ from mostlyai.sdk.domain import (
     ConnectorReadDataConfig,
     ConnectorType,
     ConnectorWriteDataConfig,
-    CurrentUser,
-    Dataset,
-    DatasetConfig,
-    DatasetListItem,
-    DatasetPatchConfig,
     Generator,
     GeneratorCloneConfig,
     GeneratorCloneTrainingStatus,
@@ -69,7 +59,6 @@ from mostlyai.sdk.domain import (
     GeneratorPatchConfig,
     IfExists,
     JobProgress,
-    ModelType,
     Probe,
     ProgressStatus,
     SyntheticDataset,
@@ -121,28 +110,6 @@ class Routes:
             return RedirectResponse(url="/docs")
 
         ## GENERAL
-
-        @self.router.get("/about", response_model=AboutService)
-        async def get_about_service() -> AboutService:
-            return AboutService(version=sdk.__version__, assistant=False)
-
-        @self.router.get("/users/me", response_model=CurrentUser)
-        async def get_current_user_info() -> CurrentUser:
-            return CurrentUser()
-
-        @self.router.get("/computes", response_model=list[ComputeListItem])
-        async def list_computes() -> JSONResponse:
-            return JSONResponse(content=[])
-
-        @self.router.get("/models/{model_type}")
-        async def list_models(model_type: str) -> JSONResponse:
-            if model_type == ModelType.tabular:
-                models = ["MOSTLY_AI/Small", "MOSTLY_AI/Medium", "MOSTLY_AI/Large"]
-            elif model_type == ModelType.language:
-                models = ["MOSTLY_AI/LSTMFromScratch-3m", "microsoft/phi-1_5", "(HuggingFace-hosted models)"]
-            else:
-                models = []
-            return JSONResponse(content=models)
 
         ## CONNECTORS
 
@@ -279,96 +246,6 @@ class Routes:
                 background=BackgroundTask(Path(tmp_path).unlink, missing_ok=True),
             )
 
-        ## DATASETS
-
-        @self.router.get("/datasets")
-        async def list_datasets(
-            offset: int = 0,
-            limit: int = 50,
-            searchTerm: str | None = None,
-        ) -> JSONResponse:
-            dataset_dirs = [p for p in (self.home_dir / "datasets").glob("*") if p.is_dir()]
-            dataset_list_items = []
-            for dataset_dir in dataset_dirs:
-                dataset = read_dataset_from_json(dataset_dir)
-                dataset_string = " ".join([dataset.name or "", dataset.description or ""]).lower()
-                if searchTerm and searchTerm.lower() not in dataset_string:
-                    continue
-                # use model_construct to skip validation and warnings of extra fields
-                dataset_list_items.append(DatasetListItem.model_construct(**dataset.model_dump()))
-
-            return JSONResponse(
-                status_code=200,
-                content=jsonable_encoder(
-                    {
-                        "totalCount": len(dataset_list_items),
-                        "results": dataset_list_items[int(offset) : int(offset) + int(limit)],
-                    }
-                ),
-            )
-
-        @self.router.post("/datasets", response_model=Dataset)
-        async def create_dataset(config: DatasetConfig = Body(...)) -> Dataset:
-            dataset = Dataset(**config.model_dump())
-            dataset_dir = self.home_dir / "datasets" / dataset.id
-            write_dataset_to_json(dataset_dir, dataset)
-            return dataset
-
-        @self.router.get("/datasets/{id}", response_model=Dataset)
-        async def get_dataset(id: str) -> Dataset:
-            dataset_dir = self.home_dir / "datasets" / id
-            if not dataset_dir.exists():
-                raise HTTPException(status_code=404, detail=f"Dataset `{id}` not found")
-            dataset = read_dataset_from_json(dataset_dir)
-            return dataset
-
-        @self.router.patch("/datasets/{id}", response_model=Dataset)
-        async def patch_dataset(id: str, config: DatasetPatchConfig = Body(...)) -> Dataset:
-            dataset_dir = self.home_dir / "datasets" / id
-            dataset = read_dataset_from_json(dataset_dir)
-            for key, value in config.model_dump().items():
-                if value is not None:
-                    setattr(dataset, key, value)
-            write_dataset_to_json(dataset_dir, dataset)
-            return dataset
-
-        @self.router.delete("/datasets/{id}")
-        async def delete_dataset(id: str):
-            dataset_dir = self.home_dir / "datasets" / id
-            shutil.rmtree(dataset_dir, ignore_errors=True)
-
-        @self.router.get("/datasets/{id}/file")
-        async def download_dataset_file(id: str, filepath: str) -> FileResponse:
-            dataset_dir = self.home_dir / "datasets" / id
-            filename = Path(filepath).name
-            return StreamingResponse(
-                open(dataset_dir / filepath, "rb"),
-                media_type="application/octet-stream",
-                headers={"Content-Disposition": f"attachment; filename={filename}"},
-            )
-
-        @self.router.post("/datasets/{id}/file")
-        async def upload_dataset_file(id: str, file: UploadFile = File(...)) -> None:
-            dataset_dir = self.home_dir / "datasets" / id
-            dataset = read_dataset_from_json(dataset_dir)
-            try:
-                file_content = await file.read()
-                with open(dataset_dir / file.filename, "wb") as f:
-                    f.write(file_content)
-                dataset.files.append(file.filename)
-                write_dataset_to_json(dataset_dir, dataset)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error uploading file `{file.filename}`: {e}")
-
-        @self.router.delete("/datasets/{id}/file")
-        async def delete_dataset_file(id: str, filepath: str) -> None:
-            dataset_dir = self.home_dir / "datasets" / id
-            dataset = read_dataset_from_json(dataset_dir)
-            if os.path.exists(dataset_dir / filepath):
-                os.remove(dataset_dir / filepath)
-            dataset.files = [f for f in dataset.files if f != filepath]
-            write_dataset_to_json(dataset_dir, dataset)
-
         ## GENERATORS
 
         @self.router.get("/generators")
@@ -487,8 +364,7 @@ class Routes:
             subprocess.Popen(cmd)
 
         @self.router.get("/generators/{id}/training/logs", response_class=StreamingResponse)
-        async def download_training_logs(id: str, slft: str) -> StreamingResponse:
-            _ = slft  # ignore parameter
+        async def download_training_logs(id: str) -> StreamingResponse:
             generator_dir = self.home_dir / "generators" / id
             zip_buffer = create_zip_in_memory(generator_dir, "*.log")
             return StreamingResponse(
@@ -634,8 +510,7 @@ class Routes:
             subprocess.Popen(cmd)
 
         @self.router.get("/synthetic-datasets/{id}/generation/logs", response_class=StreamingResponse)
-        async def download_generation_logs(id: str, slft: str) -> StreamingResponse:
-            _ = slft  # ignore parameter
+        async def download_generation_logs(id: str) -> StreamingResponse:
             synthetic_dataset_dir = self.home_dir / "synthetic-datasets" / id
             zip_buffer = create_zip_in_memory(synthetic_dataset_dir, "*.log")
             return StreamingResponse(
@@ -649,8 +524,7 @@ class Routes:
             return synthetic_datasets.get_synthetic_dataset_config(self.home_dir, id)
 
         @self.router.get("/synthetic-datasets/{id}/download", response_class=FileResponse)
-        async def download_synthetic_dataset(id: str, slft: str, format: str) -> FileResponse:
-            _ = slft  # ignore parameter
+        async def download_synthetic_dataset(id: str, format: str) -> FileResponse:
             synthetic_dataset_dir = self.home_dir / "synthetic-datasets" / id
             if format == SyntheticDatasetFormat.parquet:
                 filename = "synthetic-parquet-data.zip"
